@@ -1,0 +1,9 @@
+# Sovereign v5.0 — pinned for one-shot deploy (run: pip install -r requirements.txt)
+discord.py>=2.3,<3
+litellm>=1.0
+psutil>=5.9
+aiohttp>=3.8
+python-dotenv>=1.0
+fastapi>=0.100
+uvicorn>=0.22
+pytest>=7.0

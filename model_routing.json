@@ -1,0 +1,60 @@
+{
+  "layers": {
+    "CEO": {
+      "provider": "anthropic",
+      "model": "claude-sonnet",
+      "fallback_models": [
+        { "provider": "anthropic", "model": "claude-opus-4.6" },
+        { "provider": "openai", "model": "gpt-5.2" }
+      ]
+    },
+    "CFO": {
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "fallback_models": [
+        { "provider": "openai", "model": "gpt-5.2" }
+      ]
+    },
+    "CISO": {
+      "provider": "anthropic",
+      "model": "claude-opus-4.6",
+      "fallback_models": [
+        { "provider": "openai", "model": "gpt-5.2" }
+      ]
+    },
+    "DIRECTOR": {
+      "provider": "anthropic",
+      "model": "claude-sonnet",
+      "fallback_models": [
+        { "provider": "anthropic", "model": "claude-opus-4.6" },
+        { "provider": "openai", "model": "gpt-5.2" }
+      ]
+    },
+    "MANAGER": {
+      "provider": "google",
+      "model": "gemini-2.0-flash",
+      "fallback_models": [
+        { "provider": "google", "model": "gemini-2.0-pro" },
+        { "provider": "openai", "model": "gpt-5-mini" }
+      ]
+    },
+    "PROCESS_OPTIMIZER": {
+      "provider": "google",
+      "model": "gemini-2.0-flash",
+      "fallback_models": [
+        { "provider": "google", "model": "gemini-2.0-pro" },
+        { "provider": "openai", "model": "gpt-5-mini" }
+      ]
+    },
+    "WORKER_EXECUTION": {
+      "provider": "local",
+      "model": "kimi-k-local",
+      "fallback_models": [
+        { "provider": "local", "model": "qwen2.5-7b-instruct" },
+        { "provider": "local", "model": "llama-3.1-8b-instruct" },
+        { "provider": "openai", "model": "gpt-5-mini" }
+      ],
+      "cfo_gated_paid_fallback": true
+    }
+  }
+}

@@ -1,0 +1,38 @@
+---
+description: RMFramework v4.10 governing laws — security, Windows-native, AuditDB, risk routing, state transitions, vision & owner–CEO partnership
+alwaysApply: true
+---
+
+# RMFramework v4.10 Governing Laws
+
+Follow these laws in all code, design, and suggestions.
+
+## 1. Fail-Closed Security
+
+- **ALWAYS** prioritize "Fail-Closed" security over execution speed.
+- On errors or ambiguity, default to denying/blocking rather than allowing.
+
+## 2. Windows-Native Only
+
+- **NEVER** suggest or use Linux-specific libraries (e.g., `fcntl`, `signal.SIGALRM`).
+- Use **Windows-native** primitives: `msvcrt` and `ctypes` for locking, timing, and system calls.
+
+## 3. Financial Logic & AuditDB
+
+- **ALL** financial logic must be **atomic** and reconcile through the **AuditDB** (SQLite WAL-mode).
+- No financial state changes without an auditable, atomic transaction in AuditDB.
+
+## 4. Risk-Based Model Routing
+
+- **ANY** task with `risk_class != NONE` must be forced to **Tier 1 (Reasoning)** models.
+- Do not route high-risk tasks to faster/cheaper tiers.
+
+## 5. System State Transitions
+
+- **REFER** to `TECHNICAL_MANIFESTO.md` for the ground truth of system state transitions.
+- When that file exists, treat it as authoritative for lifecycle and state machine behavior.
+
+## 6. Vision & Owner–CEO Partnership
+
+- **REFER** to `GOVERNANCE_AND_VISION.md` for company vision: self-serving company, best possible results, owner provides what the team needs, strong owner–CEO relationship.
+- Design and prompts (including CEO soul) should align with this vision.

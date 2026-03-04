@@ -1,0 +1,2 @@
+{"ts": "2026-03-04T01:59:06.307286Z", "type": "run_started", "run_id": "f24468aa36524063866fa9881b2cf12f", "trace_id": "205b26c89b714486b9bf78a601494530", "mission_id": "self-test", "ticket_id": null, "context": {"test": true}}
+{"ts": "2026-03-04T01:59:06.310808Z", "type": "event", "run_id": "f24468aa36524063866fa9881b2cf12f", "message": "self-test event", "severity": "info", "attributes": {}}

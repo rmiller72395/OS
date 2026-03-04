@@ -1,0 +1,28 @@
+{
+  "apis": [
+    {
+      "name": "Open-Meteo",
+      "description": "Weather API, free, no API key",
+      "base_url": "https://api.open-meteo.com",
+      "docs_url": "https://open-meteo.com/en/docs",
+      "auth": "none",
+      "category": "weather"
+    },
+    {
+      "name": "CoinGecko",
+      "description": "Cryptocurrency prices and metadata",
+      "base_url": "https://api.coingecko.com",
+      "docs_url": "https://www.coingecko.com/en/api/documentation",
+      "auth": "none",
+      "category": "crypto"
+    },
+    {
+      "name": "World Time API",
+      "description": "Current time by timezone",
+      "base_url": "https://worldtimeapi.org/api",
+      "docs_url": "https://worldtimeapi.org",
+      "auth": "none",
+      "category": "time"
+    }
+  ]
+}

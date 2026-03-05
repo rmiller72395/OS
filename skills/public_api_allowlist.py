@@ -27,14 +27,22 @@ def get_allowlist_config() -> Dict[str, Any]:
         "http_default_timeout_s": 20,
         "http_max_timeout_s": 60,
     }
-    env_domains = os.getenv("PUBLIC_API_ALLOWLIST_DOMAINS", "").strip()
-    if env_domains:
-        out["public_api_allowlist_domains"] = [d.strip().lower() for d in env_domains.split(",") if d.strip()]
+    env_domains_raw = os.getenv("PUBLIC_API_ALLOWLIST_DOMAINS", "").strip()
+    has_env_domains = bool(env_domains_raw)
+    if has_env_domains:
+        out["public_api_allowlist_domains"] = [
+            d.strip().lower() for d in env_domains_raw.split(",") if d.strip()
+        ]
     if path.exists():
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(data.get("public_api_allowlist_domains"), list):
-                out["public_api_allowlist_domains"] = [str(d).strip().lower() for d in data["public_api_allowlist_domains"] if str(d).strip()]
+            # Only take domains from config if env var did NOT explicitly set them.
+            if isinstance(data.get("public_api_allowlist_domains"), list) and not has_env_domains:
+                out["public_api_allowlist_domains"] = [
+                    str(d).strip().lower()
+                    for d in data["public_api_allowlist_domains"]
+                    if str(d).strip()
+                ]
             if isinstance(data.get("public_api_allowlist_url_prefixes"), list):
                 out["public_api_allowlist_url_prefixes"] = [str(p).strip() for p in data["public_api_allowlist_url_prefixes"] if str(p).strip()]
             if isinstance(data.get("http_max_bytes"), (int, float)):

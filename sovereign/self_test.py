@@ -43,16 +43,18 @@ def run_self_test() -> int:
     else:
         print("   OK")
 
-    # 2) Discord connectivity (token + channel IDs)
+    # 2) Discord connectivity (token + channel IDs) — Fail-closed: missing critical env = test failure
     print("2. Checking Discord env...")
     token = os.getenv("DISCORD_TOKEN", "").strip()
     if not token:
-        print("   WARN: DISCORD_TOKEN not set (required for bot run; self-test continues)")
+        errors.append("DISCORD_TOKEN not set (required for bot run)")
+        print("   FAIL: DISCORD_TOKEN not set (required for bot run)")
     else:
         print("   DISCORD_TOKEN set")
     owners = os.getenv("OWNER_DISCORD_IDS", "").strip()
     if not owners:
-        print("   WARN: OWNER_DISCORD_IDS not set")
+        errors.append("OWNER_DISCORD_IDS not set (required for owner-only commands)")
+        print("   FAIL: OWNER_DISCORD_IDS not set")
     else:
         print("   OWNER_DISCORD_IDS set")
     mon = os.getenv("MONITORING_CHANNEL_ID", "").strip()

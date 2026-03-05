@@ -764,7 +764,7 @@ def _validate_config(cfg: Dict[str, Any]) -> None:
     cfg.setdefault("ops_channel_id", None)
     for k in ("heartbeat_s", "health_stall_s", "log_retention_runs", "log_retention_days", "backup_keep_days"):
         try:
-            cfg[k] = max(1, int(cfg.get(k, 30 if "heartbeat" in k else 500 if "runs" in k else 14 if "days" in k else 7))
+            cfg[k] = max(1, int(cfg.get(k, 30 if "heartbeat" in k else 500 if "runs" in k else 14 if "days" in k else 7)))
         except (TypeError, ValueError):
             cfg[k] = 30 if k == "heartbeat_s" else 300 if k == "health_stall_s" else 500 if k == "log_retention_runs" else 14 if k == "log_retention_days" else 7
     for k in ("auto_exit_on_stall", "log_compress_old", "backup_on_startup", "backup_daily"):
@@ -3882,8 +3882,8 @@ class SovereignBot(discord.Client):
                         if permit_id:
                             try:
                                 # v4.10 idempotency: skip if already executed (resume_mode=safe_skip_completed)
-                            async with _cfg.lock:
-                                resume_mode = _cfg.get("resume_mode") or "off"
+                                async with _cfg.lock:
+                                    resume_mode = _cfg.get("resume_mode") or "off"
                                 if resume_mode == "safe_skip_completed":
                                     if await _audit_db.action_log_has_work_item(mission_id, work_item_id):
                                         await _audit_db.set_permit_status(permit_id, "USED")

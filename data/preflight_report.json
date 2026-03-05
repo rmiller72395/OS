@@ -1,0 +1,75 @@
+{
+  "version": "5.0.0",
+  "timestamp": "2026-03-04T23:21:51Z",
+  "pass": true,
+  "passed_checks": 12,
+  "total_checks": 12,
+  "failing_checks": [],
+  "results": [
+    {
+      "name": "init",
+      "passed": true,
+      "message": "OK"
+    },
+    {
+      "name": "config",
+      "passed": true,
+      "message": "schema v4"
+    },
+    {
+      "name": "tool_registry",
+      "passed": true,
+      "message": "12 tools bootstrapped"
+    },
+    {
+      "name": "grants",
+      "passed": true,
+      "message": "explicit read-only only"
+    },
+    {
+      "name": "safe_mode",
+      "passed": true,
+      "message": "side-effect tools disabled / SAFE_MODE respected"
+    },
+    {
+      "name": "default_deny",
+      "passed": true,
+      "message": "unregistered/disabled/missing grant denied"
+    },
+    {
+      "name": "idempotency",
+      "passed": true,
+      "message": "first commit; retry did not duplicate"
+    },
+    {
+      "name": "ticket_lifecycle",
+      "passed": true,
+      "message": "tickets created; READY; grant check OK"
+    },
+    {
+      "name": "circuit_breaker",
+      "passed": true,
+      "message": "circuit tripped after N failures"
+    },
+    {
+      "name": "stuck_run_alert",
+      "passed": true,
+      "message": "alert written to simulated_alerts.jsonl"
+    },
+    {
+      "name": "heartbeat",
+      "passed": true,
+      "message": "heartbeat file written"
+    },
+    {
+      "name": "dashboard",
+      "passed": true,
+      "message": "skipped (fastapi/uvicorn not installed)"
+    }
+  ],
+  "environment": {
+    "SIMULATION_MODE": "1",
+    "SAFE_MODE": "1",
+    "SOVEREIGN_DATA_DIR": "C:\\Users\\17165\\Downloads\\sovereign_v4_10_rollout_ready"
+  }
+}

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sqlite3
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -159,14 +160,15 @@ class ToolRegistry:
             raise
 
     def get_tool(self, tool_name: str) -> Optional[ToolDef]:
-        """Return tool by name or None."""
+        """Return tool by name or None (case-insensitive)."""
         try:
             conn = self._get_conn()
             try:
                 self.ensure_schema()
+                key = (tool_name or "").strip().upper()
                 cur = conn.execute(
-                    "SELECT * FROM tool_registry WHERE tool_name = ?",
-                    (tool_name.strip(),),
+                    "SELECT * FROM tool_registry WHERE UPPER(tool_name) = ?",
+                    (key,),
                 )
                 row = cur.fetchone()
                 return _row_to_tool(row) if row else None
@@ -352,6 +354,34 @@ def bootstrap_builtin_tools(
         )
         registry.upsert_tool(t)
         count += 1
+
+    # ---- Simulation/test-only fake tools (only when SIMULATION_MODE=1) ----
+    if os.getenv("SIMULATION_MODE", "").strip() == "1" or os.getenv("SOVEREIGN_PREFLIGHT", "").strip() == "1":
+        for name, desc, scopes, side_effect, enabled in [
+            ("fake_read_success", "[Simulation] Returns fixed JSON.", ["read:sim"], False, True),
+            ("fake_read_timeout", "[Simulation] Raises TimeoutError.", ["read:sim"], False, True),
+            ("fake_read_network_error", "[Simulation] Raises ConnectionError.", ["read:sim"], False, True),
+            ("fake_side_effect_write", "[Simulation] Writes marker file; idempotency required.", ["write:sim"], True, True),
+        ]:
+            t = ToolDef(
+                tool_name=name,
+                description=desc,
+                input_schema_json={},
+                output_schema_json=None,
+                scopes=scopes,
+                side_effect=side_effect,
+                idempotency_required=side_effect,
+                cost_model_json={"usd_per_call": 0.0},
+                default_timeout_s=5,
+                max_timeout_s=10,
+                rate_limit_json={"calls_per_minute": 60},
+                allowlist_json={},
+                enabled=enabled,
+                created_at=now,
+                updated_at=now,
+            )
+            registry.upsert_tool(t)
+            count += 1
 
     logger.info("bootstrap_builtin_tools: upserted %d tools", count)
     return count

@@ -1,0 +1,1 @@
+{"run_id": null, "mission_id": null, "ticket_id": null, "component": "watchdog", "error_signature": "HEARTBEAT_STALL", "what_happened": "Preflight simulation: stall alert path", "what_to_do": ["Restart bot"], "dashboard_port": 8765, "body_preview": "Stall test"}

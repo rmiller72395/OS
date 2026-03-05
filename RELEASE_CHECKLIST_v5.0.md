@@ -21,13 +21,14 @@
 | /status: version, SAFE_MODE, paused, queue depth, spend | **PASS** | get_sys_status includes SAFE_MODE in flags; slash and text /status show version, pause, queue depth. |
 | Monitoring alerts: what happened + what to do + dedupe | **PASS** | _send_monitoring_alert with what_happened, what_to_do, dashboard/ticket links; throttle by error_signature. |
 | Windows / Task Scheduler | **PASS** | start.ps1, run_windows.bat; no Linux-only primitives (msvcrt lock, asyncio timeouts). |
-| Self-test exit 0 | **PASS** | python -m sovereign self-test passes (Discord token optional for zip verification). |
+| Self-test exit 0 | **PASS** | python -m sovereign self-test passes (Discord token optional with SIMULATION_MODE=1). |
+| Preflight (simulation) | **PASS** | SIMULATION_MODE=1 SAFE_MODE=1 python -m sovereign preflight completes in <2 min; exit 0 on full PASS. |
 | verify_execution_layer.py | **PASS** | Execution layer verification succeeded. |
 
 ## Remaining known risks
 
 - **Unit tests (pytest):** Not run in this environment (pytest not installed). Recommend running `pip install pytest` and `python -m pytest tests/ -v` before production deploy.
-- **Dashboard (FastAPI):** Optional; self-test skips if fastapi not installed. Include `fastapi` and `uvicorn` in requirements if dashboard is required.
+- **Dashboard (FastAPI):** Optional; self-test and preflight skip dashboard check if fastapi/uvicorn not installed. Include `fastapi` and `uvicorn` in requirements if dashboard is required.
 - **Ad-hoc missions:** Run-scoped auto-grant is read-only only (allowed_scopes read:*; no side_effect tools). For write/side-effect, use ticket flow with explicit grant.
 - **Capability plan:** If plan requests tools/scopes not in current grant, ticket is set to BLOCKED and Discord message requests approval; execution does not proceed.
 
@@ -57,19 +58,25 @@
    # Optional first day: SAFE_MODE=1
    ```
 
-5. **Self-test**
+5. **Preflight (recommended)**
+   ```powershell
+   $env:SIMULATION_MODE="1"; $env:SAFE_MODE="1"; python -m sovereign preflight
+   ```
+   Expect: "12/12 passed" and exit 0. Report: `data/preflight_report.json`.
+
+6. **Self-test**
    ```powershell
    python -m sovereign self-test
    ```
-   Expect: "Self-test passed." (exit code 0).
+   Expect: "Self-test passed." (exit code 0). Use `SIMULATION_MODE=1` to run without Discord.
 
-6. **Run**
+7. **Run**
    ```powershell
    python bot.py
    ```
    Or: `.\start.ps1` or `.\run_windows.bat` (Task Scheduler: program `powershell.exe`, args `-File "C:\Sovereign\releases\v5.0\start.ps1"`).
 
-7. **In Discord**
+8. **In Discord**
    - `/status` — version, SAFE_MODE, pause, queue depth, spend.
    - `/runs`, `/run <run_id>`, `/ticket list`, `/ticket view <id>`.
    - If SAFE_MODE=1: disable with SAFE_MODE=0 and restart to start missions.

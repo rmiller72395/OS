@@ -242,6 +242,14 @@ MONITORING_CHANNEL_ID = os.getenv("MONITORING_CHANNEL_ID", "").strip()
 OPS_CHANNEL_ID       = os.getenv("OPS_CHANNEL_ID", "").strip()
 # Safe mode: no paid calls, no side-effect tools; diagnostics only
 SAFE_MODE = os.getenv("SAFE_MODE", "0").strip() == "1"
+# Simulation mode: alerts to data/simulated_alerts.jsonl; no Discord required for alert path; fast timeouts when set
+SIMULATION_MODE = os.getenv("SIMULATION_MODE", "0").strip() == "1"
+if SIMULATION_MODE:
+    try:
+        from notifications.notifier import set_notifier, FileNotifier
+        set_notifier(FileNotifier())
+    except Exception:
+        pass
 
 # Permit integrity secret (v4.8): required to prevent forged approvals.
 # Must be set in environment for worker permits to function.
@@ -815,6 +823,10 @@ def _read_config_from_disk() -> Dict[str, Any]:
         validate_schema_version(data)
     except Exception:
         pass
+    # Simulation mode: fast timeouts for harness (heartbeat, stall, etc.)
+    if os.getenv("SIMULATION_MODE", "").strip() == "1":
+        data["heartbeat_s"] = int(os.getenv("HEARTBEAT_S", "1"))
+        data["health_stall_s"] = int(os.getenv("HEALTH_STALL_S", "3"))
     return data
 
 def _atomic_replace(src: str, dst: str, retries: int = 3) -> None:
@@ -1715,19 +1727,31 @@ async def _send_monitoring_alert(
     last_events: Optional[List[str]] = None,
     dashboard_port: int = 8765,
 ) -> None:
-    """Send failure alert to MONITORING_CHANNEL_ID. Chunk to 2000 chars; throttle same error_signature 5 min."""
-    if not MONITORING_CHANNEL_ID or not bot_instance:
-        return
+    """Send failure alert via Notifier (simulation file or Discord). Throttle same error_signature 5 min."""
     now = time.time()
     key = error_signature[:200]
     if key in _alert_throttle and (now - _alert_throttle[key]) < _ALERT_THROTTLE_S:
         _alert_throttle[key] = now
+        notifier = None
         try:
-            ch = bot_instance.get_channel(int(MONITORING_CHANNEL_ID))
-            if ch:
-                await ch.send(f"**[REPEAT]** Same failure: `{error_signature[:100]}...` (throttled)", allowed_mentions=_NO_MENTIONS)
+            from notifications.notifier import get_notifier
+            notifier = get_notifier()
         except Exception:
             pass
+        if notifier:
+            await notifier.send_alert({
+                "run_id": run_id, "mission_id": mission_id, "ticket_id": ticket_id,
+                "component": component, "error_signature": f"[REPEAT] {error_signature[:100]}...",
+                "what_happened": "throttled", "what_to_do": [], "lines": [f"**[REPEAT]** Same failure (throttled)"],
+                "body": f"**[REPEAT]** Same failure: `{error_signature[:100]}...` (throttled)", "dashboard_port": dashboard_port,
+            })
+        elif MONITORING_CHANNEL_ID and bot_instance:
+            try:
+                ch = bot_instance.get_channel(int(MONITORING_CHANNEL_ID))
+                if ch:
+                    await ch.send(f"**[REPEAT]** Same failure: `{error_signature[:100]}...` (throttled)", allowed_mentions=_NO_MENTIONS)
+            except Exception:
+                pass
         return
     _alert_throttle[key] = now
     lines = [
@@ -1753,6 +1777,22 @@ async def _send_monitoring_alert(
         for ev in last_events[-10:]:
             lines.append(ev[:200] if isinstance(ev, str) else str(ev)[:200])
     body = "\n".join(lines)
+    notifier = None
+    try:
+        from notifications.notifier import get_notifier
+        notifier = get_notifier()
+    except Exception:
+        pass
+    if notifier:
+        await notifier.send_alert({
+            "run_id": run_id, "mission_id": mission_id, "ticket_id": ticket_id,
+            "component": component, "error_signature": error_signature[:300],
+            "what_happened": what_happened[:500], "what_to_do": what_to_do[:5],
+            "last_events": last_events, "lines": lines, "body": body, "dashboard_port": dashboard_port,
+        })
+        return
+    if not MONITORING_CHANNEL_ID or not bot_instance:
+        return
     try:
         ch = bot_instance.get_channel(int(MONITORING_CHANNEL_ID))
         if not ch:
@@ -3396,6 +3436,14 @@ class SovereignBot(discord.Client):
         except Exception as e:
             logging.warning(f"Failed to attach circuit alert callback: {e}")
 
+        # Notifier: use Discord when not in simulation (simulation set at module load)
+        try:
+            from notifications.notifier import get_notifier, set_notifier, create_notifier
+            if get_notifier() is None:
+                set_notifier(create_notifier(self, MONITORING_CHANNEL_ID))
+        except Exception:
+            pass
+
         # v5.0: Tool Registry bootstrap (idempotent; ensures starter tools exist)
         try:
             from skills.tool_registry import get_tool_registry, bootstrap_builtin_tools
@@ -3531,7 +3579,13 @@ class SovereignBot(discord.Client):
                     await asyncio.to_thread(_write_hb, ts)
                 except OSError:
                     pass
-                await asyncio.sleep(HEARTBEAT_INTERVAL_S)
+                sleep_s = HEARTBEAT_INTERVAL_S
+                try:
+                    async with _cfg.lock:
+                        sleep_s = int(_cfg.get("heartbeat_s") or sleep_s)
+                except Exception:
+                    pass
+                await asyncio.sleep(max(1, sleep_s))
         except asyncio.CancelledError:
             pass
 
@@ -3539,7 +3593,15 @@ class SovereignBot(discord.Client):
         """Check heartbeat file age; if stall > health_stall_s and auto_exit_on_stall, alert and exit (v4.10)."""
         try:
             while not _draining:
-                await asyncio.sleep(30)
+                interval = 30
+                try:
+                    async with _cfg.lock:
+                        stall_s = int(_cfg.get("health_stall_s") or 300)
+                        if SIMULATION_MODE and stall_s <= 10:
+                            interval = 1
+                except Exception:
+                    pass
+                await asyncio.sleep(interval)
                 async with _cfg.lock:
                     stall_s = int(_cfg.get("health_stall_s") or 300)
                     auto_exit = bool(_cfg.get("auto_exit_on_stall", True))

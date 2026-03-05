@@ -29,6 +29,7 @@ $include = @(
     "observability",
     "tickets",
     "dashboard",
+    "notifications",
     "sovereign",
     "skills",
     "tests",

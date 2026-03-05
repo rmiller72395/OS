@@ -16,6 +16,7 @@ import os
 import re
 import uuid
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from execution_models import ActionResult, ExecutionContext
@@ -815,3 +816,98 @@ register_skill(UuidNewSkill())
 register_skill(JsonValidateSkill())
 register_skill(HttpGetJsonReadonlySkill())
 register_skill(PublicApiCatalogSearchSkill())
+
+# Simulation/test-only fake tools (enabled only when SIMULATION_MODE=1; registered in tool_registry by bootstrap)
+if os.getenv("SIMULATION_MODE", "").strip() == "1" or os.getenv("SOVEREIGN_PREFLIGHT", "").strip() == "1":
+    class FakeReadSuccessSkill(BaseSkill):
+        """Read-only; returns deterministic JSON. Simulation only."""
+
+        def __init__(self) -> None:
+            super().__init__(
+                name="fake_read_success",
+                description="[Simulation] Returns fixed JSON. Params: none.",
+                version="1.0.0",
+                access_level=AccessLevel.GLOBAL,
+                idempotent=True,
+            )
+
+        def validate(self, params: Dict[str, Any]) -> None:
+            super().validate(params)
+
+        async def _execute_impl(self, params: Dict[str, Any], context: ExecutionContext) -> ActionResult:
+            return ActionResult("SUCCESS", "ok", {"simulation": True, "data": {"key": "value"}})
+
+    class FakeReadTimeoutSkill(BaseSkill):
+        """Read-only; raises TimeoutError immediately. Simulation only."""
+
+        def __init__(self) -> None:
+            super().__init__(
+                name="fake_read_timeout",
+                description="[Simulation] Raises TimeoutError. Params: none.",
+                version="1.0.0",
+                access_level=AccessLevel.GLOBAL,
+                idempotent=True,
+            )
+
+        def validate(self, params: Dict[str, Any]) -> None:
+            super().validate(params)
+
+        async def _execute_impl(self, params: Dict[str, Any], context: ExecutionContext) -> ActionResult:
+            raise TimeoutError("simulation timeout")
+
+    class FakeReadNetworkErrorSkill(BaseSkill):
+        """Read-only; raises ConnectionError. Simulation only."""
+
+        def __init__(self) -> None:
+            super().__init__(
+                name="fake_read_network_error",
+                description="[Simulation] Raises ConnectionError. Params: none.",
+                version="1.0.0",
+                access_level=AccessLevel.GLOBAL,
+                idempotent=True,
+            )
+
+        def validate(self, params: Dict[str, Any]) -> None:
+            super().validate(params)
+
+        async def _execute_impl(self, params: Dict[str, Any], context: ExecutionContext) -> ActionResult:
+            raise ConnectionError("simulation network error")
+
+    class FakeSideEffectWriteSkill(BaseSkill):
+        """Side-effect; writes marker file under data/sim_side_effect/. Requires idempotency (run_id). Simulation only."""
+
+        def __init__(self) -> None:
+            super().__init__(
+                name="fake_side_effect_write",
+                description="[Simulation] Writes marker file. Params: marker_name (optional).",
+                version="1.0.0",
+                access_level=AccessLevel.GLOBAL,
+                idempotent=False,
+            )
+
+        def validate(self, params: Dict[str, Any]) -> None:
+            super().validate(params)
+
+        async def _execute_impl(self, params: Dict[str, Any], context: ExecutionContext) -> ActionResult:
+            base = Path(os.getenv("SOVEREIGN_DATA_DIR", os.getcwd()))
+            out_dir = base / "data" / "sim_side_effect"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            run_id = getattr(context, "run_id", None) or "unknown"
+            work_id = getattr(context, "work_item_id", 0)
+            marker = (params.get("marker_name") or f"{run_id}_{work_id}").strip() or f"{run_id}_{work_id}"
+            if not re.match(r"^[a-zA-Z0-9_.\-]+$", marker):
+                marker = f"{run_id}_{work_id}"
+            path = out_dir / f"{marker}.marker"
+            try:
+                with open(path, "x", encoding="utf-8") as f:
+                    f.write("1")
+                return ActionResult("SUCCESS", "marker written", {"path": str(path)})
+            except FileExistsError:
+                return ActionResult("SUCCESS", "already committed (idempotent)", {"path": str(path)})
+            except Exception as e:
+                return ActionResult("FAIL", str(e)[:200], None)
+
+    register_skill(FakeReadSuccessSkill())
+    register_skill(FakeReadTimeoutSkill())
+    register_skill(FakeReadNetworkErrorSkill())
+    register_skill(FakeSideEffectWriteSkill())

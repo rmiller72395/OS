@@ -30,20 +30,32 @@ This release is **rollout-ready**: Discord as control plane, local dashboard for
    - Set `DISCORD_TOKEN`, `OWNER_DISCORD_IDS`, `RMFRAMEWORK_PERMIT_SECRET`, `MONITORING_CHANNEL_ID`.
    - For first-day safety set `SAFE_MODE=1`.
 
-4. **Self-test**
+4. **Preflight (recommended before first run)**
+   ```powershell
+   $env:SIMULATION_MODE="1"; $env:SAFE_MODE="1"; python -m sovereign preflight
+   ```
+   Runs the full smoke/simulation suite (config, registry, grants, SAFE_MODE, default-deny, idempotency, ticket lifecycle, circuit breaker, dashboard). No Discord or network required. Must exit 0. Writes `data/preflight_report.json`.
+
+5. **Self-test**
    ```powershell
    python -m sovereign self-test
    ```
-   Must exit 0. Then optionally: `python verify_execution_layer.py`.
+   Must exit 0. Can be run with `SIMULATION_MODE=1` (no Discord required). Then optionally: `python verify_execution_layer.py`.
 
-5. **SAFE_MODE first run**
+6. **SAFE_MODE first run**
    - Ensure `SAFE_MODE=1` in `.env`. Start: `python bot.py` or `.\run_windows.ps1` (or Task Scheduler: `run_windows.bat`).
    - In Discord: `/status` (shows version, SAFE_MODE, pause, queue depth).
    - Try `/runs`, `/ticket list`, `/ticket create title:Test description:First ticket`.
 
-6. **First real ticket run**
+7. **First real ticket run**
    - Set `SAFE_MODE=0` in `.env` and restart.
    - `/ticket ready TKT-000001`, then `/ticket start TKT-000001`, then start a mission with `TICKET_ID: TKT-000001` in the message.
+
+## Simulation mode & preflight
+
+- **SIMULATION_MODE=1:** Alerts are written to `data/simulated_alerts.jsonl` instead of Discord. No Discord token required for the alert path. Use for CI, preflight, or offline validation.
+- **Preflight:** `SIMULATION_MODE=1 SAFE_MODE=1 python -m sovereign preflight` runs the full smoke suite (config, tool registry, grants, default-deny, idempotency, ticket lifecycle, circuit breaker, dashboard health). Completes in under 2 minutes. Exit 0 only on full PASS. Report: `data/preflight_report.json`.
+- **Self-test with simulation:** `SIMULATION_MODE=1 python -m sovereign self-test` runs without requiring Discord.
 
 ## Quick start (Windows 10/11)
 
@@ -57,7 +69,7 @@ pip install -r requirements.txt
 3) **Environment (use `.env` or env vars)**
 - **Required:** `DISCORD_TOKEN`, `OWNER_DISCORD_IDS`, `RMFRAMEWORK_PERMIT_SECRET`
 - **Rollout:** `MONITORING_CHANNEL_ID` (channel for failure alerts)
-- **Optional:** `SAFE_MODE=1`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `OPS_CHANNEL_ID`
+- **Optional:** `SAFE_MODE=1`, `SIMULATION_MODE=1` (alerts to `data/simulated_alerts.jsonl`; no Discord for alerts), `SOVEREIGN_DATA_DIR`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `OPS_CHANNEL_ID`
 - **Model routing:** `MODEL_ROUTING_PATH` — if set, load model routing from this path; otherwise `./model_routing.json` is used.
 
 4) **Run**

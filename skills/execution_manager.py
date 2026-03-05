@@ -105,6 +105,15 @@ class ExecutionManager:
         log_action: Optional[Callable[..., Any]] = None,
         log_approval: Optional[Callable[..., Any]] = None,
     ) -> ActionResult:
+        # Failure injection (SIMULATION_MODE / preflight): raise before execution for deterministic tests
+        try:
+            from skills.testing.failure_injection import check_inject_failure
+            check_inject_failure(tool_name, step_id=f"{getattr(context, 'run_id', '')}:{context.work_item_id}")
+        except (TimeoutError, ConnectionError, ValueError):
+            raise
+        except Exception:
+            pass
+
         trace_id = getattr(context, "trace_id", None) or uuid.uuid4().hex[:8]
         ctx = ExecutionContext(
             mission_id=context.mission_id,

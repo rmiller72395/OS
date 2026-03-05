@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -33,7 +34,6 @@ def run_init() -> int:
         print(f"Copied {template.name} -> sovereign_config.json")
     elif not config_file.exists():
         # Create minimal default
-        import json
         from config_schema import V2_DEFAULTS, V3_DEFAULTS, V4_DEFAULTS
         default = {
             "spend": 0.0,

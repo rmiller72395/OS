@@ -295,6 +295,32 @@ def run_self_test() -> int:
         print(f"\nSelf-test had {len(errors)} error(s):")
         for e in errors:
             print(f"  - {e}")
+        # Emit an alert payload so failures are visible even when running in automation/CI.
+        try:
+            from notifications.notifier import FileNotifier, get_notifier, set_notifier
+
+            set_notifier(FileNotifier())
+            notifier = get_notifier()
+            if notifier:
+                alert_body = "\n".join(errors)[:2000]
+                alert_payload = {
+                    "run_id": None,
+                    "mission_id": None,
+                    "ticket_id": None,
+                    "component": "self_test",
+                    "error_signature": "SELF_TEST_FAILED",
+                    "what_happened": f"Self-test failed with {len(errors)} error(s).",
+                    "what_to_do": [
+                        "Review the self-test output above for specific failures.",
+                        "Fix configuration, environment, or database issues as indicated.",
+                        "Re-run python -m sovereign self-test until it passes before production rollout.",
+                    ],
+                    "body": alert_body,
+                    "dashboard_port": int(os.getenv("SOVEREIGN_DASHBOARD_PORT", "8765")),
+                }
+                asyncio.run(notifier.send_alert(alert_payload))
+        except Exception as e:
+            print(f"WARNING: failed to emit self-test alert: {e}")
         return 1
     print("\nSelf-test passed.")
     return 0

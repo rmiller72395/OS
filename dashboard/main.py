@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 # Resolve base dir (project root)
@@ -171,6 +171,56 @@ def get_ticket(ticket_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/metrics", response_class=PlainTextResponse)
+def metrics() -> str:
+    """
+    Minimal Prometheus-style metrics endpoint.
+
+    Exposes:
+    - sovereign_runs_total{status="<status>"} — count of runs by status (completed, failed, running, unknown)
+    - sovereign_tickets_total{status="<status>"} — count of tickets by status
+    """
+    lines: list[str] = []
+
+    # Run metrics from run summaries
+    try:
+        from observability.tracing import run_summary
+
+        status_counts: dict[str, int] = {}
+        if RUNS_DIR.exists():
+            files = list(RUNS_DIR.glob("*.jsonl"))
+            for p in files:
+                s = run_summary(p.stem, RUNS_DIR)
+                status = str(s.get("status", "unknown") or "unknown")
+                status_counts[status] = status_counts.get(status, 0) + 1
+        lines.append("# HELP sovereign_runs_total Total runs by status")
+        lines.append("# TYPE sovereign_runs_total counter")
+        for status, count in sorted(status_counts.items()):
+            lines.append(f'sovereign_runs_total{{status="{status}"}} {count}')
+    except Exception:
+        # Metrics should never break the dashboard; emit no run metrics on error.
+        pass
+
+    # Ticket metrics from ticket store
+    try:
+        from tickets.db import list_tickets
+
+        tickets = list_tickets(limit=1000)
+        t_status_counts: dict[str, int] = {}
+        for t in tickets:
+            status = str(t.get("status", "unknown") or "unknown")
+            t_status_counts[status] = t_status_counts.get(status, 0) + 1
+        lines.append("# HELP sovereign_tickets_total Total tickets by status (sampled up to 1000)")
+        lines.append("# TYPE sovereign_tickets_total gauge")
+        for status, count in sorted(t_status_counts.items()):
+            lines.append(f'sovereign_tickets_total{{status="{status}"}} {count}')
+    except Exception:
+        # If tickets DB is unavailable, skip ticket metrics.
+        pass
+
+    return "\n".join(lines) + "\n"
 
 
 def _plan_summary(plan: dict) -> dict:

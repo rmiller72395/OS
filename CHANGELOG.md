@@ -1,5 +1,9 @@
 # Changelog
 
+## v5.0.1 (2026-03-05)
+- **Preflight & self-test alerting (P1 monitoring/alerting):** `python -m sovereign preflight` and `python -m sovereign self-test` now emit structured alert payloads via the existing notifier path when any check fails. In simulation/CI (`SIMULATION_MODE=1`), alerts are written to `data/simulated_alerts.jsonl` for offline triage; failures still exit non-zero (fail-closed).
+- **Metrics endpoint (P1 monitoring/metrics):** The FastAPI dashboard exposes a minimal Prometheus-style `/metrics` endpoint publishing `sovereign_runs_total{status=...}` and `sovereign_tickets_total{status=...}` gauges, derived from run logs and the ticket store. This can be scraped by a time-series system (e.g. Prometheus) for error-rate and throughput dashboards.
+
 ## v4.11.0 "Obsidian Edition" (2026-03-02)
 - **Global Memory (Knowledge Store):** One-shot learning layer: SQLite Knowledge Store records task success patterns (skill chain + input params) and failure correlation (error + env context). ExecutionManager consults memory before each run and adjusts strategy (increase timeout after timeouts, try alternative skill first when past failures exist). Post-flight report commits insights to the Knowledge Store after every execution. Config: `RMFRAMEWORK_KNOWLEDGE_DB` (default: `knowledge_store.db`).
 - **Profit Tier:** Fix `model_hint` persistence in work_items INSERT (16 columns); Tier 1 defense-in-depth in worker loop when `risk_class != NONE` or `side_effects == EXECUTE`

@@ -364,6 +364,40 @@ def run_preflight() -> int:
         print(f"Failing: {', '.join(failing)}")
     print(f"\nReport: {report_path}")
 
+    # If any checks failed, emit an alert payload via the notifier path (file-backed in SIMULATION_MODE).
+    if not all_ok:
+        try:
+            from notifications.notifier import FileNotifier, get_notifier, set_notifier
+
+            # In preflight we never rely on Discord; FileNotifier writes to data/simulated_alerts.jsonl.
+            set_notifier(FileNotifier())
+            notifier = get_notifier()
+            if notifier:
+                alert_body_lines = [
+                    f"Preflight failed: {passed}/{total} checks passed.",
+                    f"Failing checks: {', '.join(failing) or 'unknown'}",
+                    f"Report path: {report_path}",
+                ]
+                alert_payload = {
+                    "run_id": None,
+                    "mission_id": None,
+                    "ticket_id": None,
+                    "component": "preflight",
+                    "error_signature": "PREFLIGHT_FAILED",
+                    "what_happened": "One or more preflight checks failed.",
+                    "what_to_do": [
+                        "Open data/preflight_report.json and inspect failing checks.",
+                        "Fix configuration or environment for each failing check.",
+                        "Re-run preflight until all checks pass before production rollout.",
+                    ],
+                    "body": "\n".join(alert_body_lines)[:2000],
+                    "dashboard_port": int(os.getenv("SOVEREIGN_DASHBOARD_PORT", "8765")),
+                }
+                asyncio.run(notifier.send_alert(alert_payload))
+        except Exception as e:
+            # Preflight must still fail-closed even if alerting encounters an error.
+            print(f"WARNING: failed to emit preflight alert: {e}")
+
     # Owner Rollout Checklist
     print("\n" + "=" * 60)
     print("OWNER ROLLOUT CHECKLIST (Day-0 bring-up)")
